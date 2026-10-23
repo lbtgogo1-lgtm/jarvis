@@ -1,3 +1,13 @@
 @echo off
+setlocal
 cd /d "%~dp0"
-.venv\Scripts\python windows_launcher.py stop
+if not exist ".venv\Scripts\python.exe" (
+    echo Python environment is missing. Run setup.bat first.
+    pause
+    exit /b 1
+)
+".venv\Scripts\python.exe" windows_launcher.py stop
+if errorlevel 1 (
+    pause
+    exit /b 1
+)

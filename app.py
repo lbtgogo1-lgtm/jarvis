@@ -51,6 +51,12 @@ def require(sid):
         raise HTTPException(404, "대화를 찾을 수 없습니다.")
 
 
+@app.get("/api/ready")
+def ready():
+    # Opening the HUD must not wait for Ollama, Whisper, or GPU telemetry.
+    return {"app": "jarvis", "ready": True}
+
+
 @app.get("/api/health")
 async def health():
     try:

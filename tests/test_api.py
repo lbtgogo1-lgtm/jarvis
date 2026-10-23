@@ -143,6 +143,17 @@ def test_ollama_down(monkeypatch):
     assert health["server"] and not health["ollama"]
 
 
+def test_readiness_does_not_wait_for_ollama_or_gpu(monkeypatch):
+    def unexpected_call(*args):
+        raise AssertionError("Readiness must be independent of optional services")
+
+    monkeypatch.setattr(module.ai, "models", unexpected_call)
+    monkeypatch.setattr(module, "gpu", unexpected_call)
+    response = client.get("/api/ready")
+    assert response.status_code == 200
+    assert response.json() == {"app": "jarvis", "ready": True}
+
+
 def test_stream_error_not_saved(monkeypatch):
     async def models():
         return ["qwen3:8b"]

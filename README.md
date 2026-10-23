@@ -5,7 +5,7 @@ Three.js/GLSL 에너지 구체, FastAPI, Ollama 스트리밍, faster-whisper 한
 ## Windows 11 설치
 
 1. Python **3.11 또는 3.12**, Node.js **22 LTS 이상**, Google Chrome, [Ollama](https://ollama.com)를 직접 설치하세요. Python은 PATH에 추가하세요. 관리자 권한 설치를 자동으로 실행하지 않습니다.
-2. 이 폴더에서 `setup.bat`을 실행하세요. 가상환경 생성, Python 패키지 설치, `npm ci`, 프런트엔드 빌드를 수행합니다. 최초 설치에는 인터넷이 필요합니다.
+2. ZIP 파일의 압축을 먼저 푼 뒤, `setup.bat`을 실행하세요. 가상환경 생성, Python 패키지 설치, `npm ci`, 프런트엔드 빌드를 수행합니다. **`Setup complete` 문구가 나와야 설치가 완료된 것입니다.** 최초 설치에는 인터넷이 필요합니다. Python Launcher의 3.12/3.11을 우선 탐색하며, 지원되는 기존 가상환경은 재사용합니다.
 3. Ollama 앱을 실행하세요. 서버가 없으면 별도 터미널에서 `ollama serve`를 실행합니다.
 4. 다운로드 용량과 사용 모델을 확인한 뒤 직접 실행하세요. 프로그램은 모델을 자동 다운로드하지 않습니다.
 
@@ -34,6 +34,8 @@ stop.bat
 
 `start.bat`은 전용 런처에서 가상환경의 서버를 `127.0.0.1:8000`에 실행하고 준비 응답 후 기본 브라우저를 엽니다. 기본 브라우저를 Chrome으로 지정하세요. 실행 창은 열어두세요. `stop.bat` 또는 실행 창에서 Ctrl+C로 이 런처가 생성한 서버만 종료합니다. 외부 Ollama는 종료하지 않습니다. 8000 포트가 이미 사용 중이면 다른 프로세스를 종료하지 않고 실패합니다. 비정상 종료 후에는 서버가 없는지 확인한 뒤 `data/server.lock`을 삭제할 수 있습니다.
 
+설치·시작 실패 시 검은 창을 유지하여 오류를 읽을 수 있습니다. 서버 출력은 `data/startup.log`에도 남깁니다. 브라우저가 자동으로 열리지 않아도 서버가 실행 중이면 Chrome 주소창에 `http://127.0.0.1:8000`을 입력하세요. HUD 준비 확인은 `/api/ready`에서 수행하며 Ollama 연결이나 GPU 조회를 기다리지 않습니다.
+
 `.env.example`은 셸 설정 예시이며 자동으로 읽지 않습니다. 기본 데이터 위치는 `data/`입니다. 다른 위치는 실행 전 `set JARVIS_DATA=C:\원하는\폴더`로 지정하세요. API 키·클라우드 연결은 필요 없습니다.
 
 ## 사용
@@ -56,6 +58,11 @@ GPU 초기화와 첫 추론이 실패하면 CPU INT8로 재시도합니다. Wind
 
 | 현상 | 조치 |
 | --- | --- |
+| 시작 창이 바로 닫힘(이전 버전) | 프로젝트 폴더의 탐색기 주소창에 `cmd` 입력 → Enter → `start.bat` 실행. 창에 남는 오류를 확인하고 최신 ZIP으로 업데이트 |
+| `Python environment is missing` | 같은 폴더의 `setup.bat` 실행. Python 3.11/3.12와 Node.js 22 이상 설치 후 `Setup complete`까지 확인 |
+| `The interface has not been built` | `setup.bat`의 npm 설치·빌드 단계 오류 해결 후 재실행 |
+| `Port 8000 is already in use` | JARVIS가 이미 실행 중이면 Chrome에서 `http://127.0.0.1:8000` 열기. 다른 앱이면 해당 앱을 직접 종료하거나 포트 사용 설정 확인 |
+| `Server exited during startup` | 검은 창의 오류 또는 `data/startup.log` 확인. Python 패키지 누락이면 `setup.bat` 재실행 |
 | Ollama 연결 실패 | Ollama 실행, `ollama list` 확인, 포트 11434 확인 후 연결 재확인 |
 | 모델 미설치 | 원하는 모델의 `ollama pull`을 직접 실행하고 설정에서 선택 |
 | STT 모델 로딩 실패 | 동일한 데이터 경로에서 `prepare_stt.py --model small` 실행, CPU 라이브러리 설치 결과 확인 |
@@ -82,7 +89,7 @@ npm run build
 ### 현재 검증 범위
 
 - Linux Python 3.12에서 의존성 설치 및 `pip check`, Vite 프로덕션 빌드 통과.
-- API 테스트 10개: SQLite 재초기화 후 기록 유지·삭제, 문맥 제한·요약, 설정 저장·입력 검증, Origin/Host 제한, Ollama 미연결/모델 미설치 처리, STT 업로드·임시 파일 삭제, 스트림 저장·오류 해제. **AI/STT 성공 경로 테스트는 테스트 대역을 사용하며 실제 추론 증거가 아닙니다.**
+- API·런처 테스트 총 18개 통과. 기존 API 검사에 독립적인 준비 상태 확인, 실제 서버 프로세스의 시작·HTTP·종료, 시작 실패 로그 및 잠금 해제, 브라우저 실패 시 수동 접속 안내, 포트 충돌 처리를 추가했습니다. Windows의 `.bat` 및 기본 브라우저 연결은 실기 미검증입니다. **AI/STT 성공 경로 테스트는 테스트 대역을 사용하며 실제 추론 증거가 아닙니다.**
 - 실제 서버의 HUD 및 상태 API HTTP 200 확인. 상세 브라우저 결과는 `VALIDATION.md` 참고.
 - 이 클라우드에는 Ollama/NVIDIA GPU/실제 마이크/Windows 음성이 없어 실제 AI 답변 품질, 실제 한국어 STT/TTS, 완전 오프라인 통합 및 `.bat` 실행은 미검증입니다. 완료로 간주하지 마세요.
 
