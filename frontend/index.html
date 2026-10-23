@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='cyan'/%3E%3C/svg%3E"
+    />
+    <title>J.A.R.V.I.S.</title>
+  </head>
+  <body>
+    <header>
+      <b>J.A.R.V.I.S.</b><span>LOCAL INTELLIGENCE / V1.0</span
+      ><time id="clock"></time>
+    </header>
+    <main>
+      <aside>
+        <h3>SYSTEM TELEMETRY</h3>
+        <pre id="health">시스템 확인 중</pre>
+        <button id="refresh">연결 재확인</button>
+        <h3>CONVERSATIONS</h3>
+        <button id="new">+ 새 대화</button>
+        <div id="sessions"></div>
+        <button id="delete">현재 대화 삭제</button
+        ><button id="clear">전체 기록 삭제</button
+        ><button id="memory">대화 요약 메모 편집</button>
+      </aside>
+      <section id="core">
+        <div id="canvas"></div>
+        <div class="core-label">
+          <small>NEURAL INTERFACE / ONLINE</small>
+          <h1>J.A.R.V.I.S.</h1>
+          <p id="state">SYSTEM READY</p>
+          <small id="fps"></small>
+        </div>
+      </section>
+      <section id="conversation">
+        <h3>COMMUNICATION LINK</h3>
+        <div id="messages" aria-live="polite"></div>
+        <p id="error" role="alert"></p>
+      </section>
+    </main>
+    <footer>
+      <button id="mic">● 마이크</button>
+      <form id="form">
+        <input
+          id="input"
+          placeholder="자비스에게 메시지를 입력하세요…"
+          autocomplete="off"
+          maxlength="12000"
+        /><button>전송 ↗</button>
+      </form>
+      <button id="cancel">중지</button
+      ><label><input type="checkbox" id="tts" checked /> 음성</label
+      ><input
+        id="volume"
+        aria-label="음성 볼륨"
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value="0.8"
+      /><button id="settings">설정</button><button id="fullscreen">⛶</button>
+    </footer>
+    <dialog id="dialog">
+      <h2>시스템 설정</h2>
+      <form id="config">
+        <label>설치된 AI 모델<select id="model"></select></label
+        ><label
+          >Temperature<input
+            id="temperature"
+            type="number"
+            min="0"
+            max="2"
+            step="0.1" /></label
+        ><label
+          >STT 모델<select id="stt_model">
+            <option>tiny</option>
+            <option>base</option>
+            <option>small</option>
+            <option>medium</option>
+            <option>large-v3</option>
+          </select></label
+        >
+        <p>STT 모델은 README 절차로 미리 다운로드해야 합니다.</p>
+        <label
+          >렌더링 품질 / 입자 밀도<select id="quality">
+            <option>LOW</option>
+            <option>MEDIUM</option>
+            <option>HIGH</option>
+          </select></label
+        ><label>입자 크기<input id="particle_size" type="number" min="0.5" max="3" step="0.1" value="1"></label><label>오프라인 한국어 음성<select id="voice"></select></label
+        ><label
+          >말하기 속도<input
+            id="rate"
+            type="number"
+            min="0.5"
+            max="2"
+            step="0.1"
+            value="1" /></label
+        ><label
+          >시스템 프롬프트<textarea id="personality" rows="7"></textarea></label
+        ><button>저장</button><button type="button" id="close">닫기</button>
+      </form>
+    </dialog>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

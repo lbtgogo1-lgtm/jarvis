@@ -1,0 +1,16 @@
+{
+  "name": "jarvis-local",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build frontend --outDir ../dist",
+    "dev": "vite frontend --host 127.0.0.1"
+  },
+  "dependencies": {
+    "three": "0.175.0"
+  },
+  "devDependencies": {
+    "vite": "6.3.5"
+  }
+}

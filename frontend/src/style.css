@@ -1,0 +1,265 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #030b14;
+  color: #b0dbea;
+  font:
+    14px system-ui,
+    sans-serif;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+body:before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(#0d638010 1px, transparent 1px),
+    linear-gradient(90deg, #0d638010 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #184054;
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  letter-spacing: 3px;
+}
+header b {
+  color: #e5fbff;
+}
+header span {
+  font-size: 10px;
+}
+time {
+  margin-left: auto;
+  letter-spacing: 1px;
+}
+main {
+  display: grid;
+  grid-template-columns: 240px minmax(260px, 1fr) 350px;
+  flex: 1;
+  min-height: 0;
+  padding: 24px;
+  gap: 20px;
+}
+aside,
+#conversation {
+  border: 1px solid #12384b;
+  background: #05131ecc;
+  padding: 18px;
+  min-height: 0;
+  overflow: auto;
+}
+h3 {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #55d7f6;
+  margin-bottom: 22px;
+}
+pre {
+  white-space: pre-wrap;
+  font: 12px/1.9 monospace;
+  color: #82a8b8;
+}
+button,
+select,
+input,
+textarea {
+  background: #0a2030;
+  color: #c1f3ff;
+  border: 1px solid #24536a;
+  padding: 10px;
+  border-radius: 3px;
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  border-color: #51dfff;
+  background: #0c3546;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+aside button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  text-align: left;
+}
+#sessions {
+  max-height: 220px;
+  overflow: auto;
+}
+#core {
+  position: relative;
+  min-height: 340px;
+  overflow: hidden;
+}
+#canvas {
+  position: absolute;
+  inset: 0;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.core-label {
+  position: absolute;
+  bottom: 5%;
+  text-align: center;
+  width: 100%;
+  pointer-events: none;
+}
+small {
+  font: 10px monospace;
+  letter-spacing: 3px;
+  color: #488d9f;
+}
+h1 {
+  letter-spacing: 10px;
+  font-size: 32px;
+  font-weight: 300;
+  color: #dcfaff;
+  margin: 12px 0;
+}
+#state {
+  font: 12px monospace;
+  letter-spacing: 3px;
+  color: #53d9f9;
+}
+#conversation {
+  display: flex;
+  flex-direction: column;
+}
+#messages {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 14px;
+  margin: 12px 0;
+  border-left: 2px solid #2798be;
+  background: #09202c;
+  line-height: 1.7;
+}
+.message.user {
+  border-color: #a6e9ef;
+  background: #102633;
+}
+.message small {
+  display: block;
+  margin-bottom: 8px;
+}
+#error {
+  color: #ffb375;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+footer {
+  padding: 18px 28px;
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid #184054;
+  align-items: center;
+}
+footer form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+#input {
+  width: 100%;
+  min-width: 80px;
+}
+#volume {
+  width: 80px;
+}
+dialog {
+  background: #071827;
+  color: #b9dfea;
+  border: 1px solid #3691b2;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90dvh;
+}
+dialog::backdrop {
+  background: #000b;
+}
+dialog label {
+  display: block;
+  margin: 12px 0;
+}
+dialog select,
+dialog textarea {
+  width: 100%;
+  margin-top: 6px;
+}
+dialog textarea {
+  resize: vertical;
+}
+dialog p {
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  main {
+    grid-template-columns: 180px 1fr 290px;
+    padding: 10px;
+    gap: 8px;
+  }
+  footer {
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+  header span {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  body {
+    height: auto;
+    min-height: 100dvh;
+  }
+  main {
+    grid-template-columns: 1fr;
+  }
+  aside {
+    order: 2;
+    max-height: 220px;
+  }
+  #core {
+    height: 440px;
+    order: 0;
+  }
+  #conversation {
+    height: 400px;
+    order: 1;
+  }
+  footer {
+    position: sticky;
+    bottom: 0;
+    background: #030b14;
+  }
+  footer form {
+    order: -1;
+    flex-basis: 100%;
+  }
+  header {
+    padding: 18px;
+  }
+  h1 {
+    font-size: 26px;
+  }
+}
