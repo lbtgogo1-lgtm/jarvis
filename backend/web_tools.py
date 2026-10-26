@@ -11,6 +11,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .public_web import WebError, public_url
+from .weather_locations import geocoding_names
 
 
 def now():
@@ -188,17 +189,37 @@ async def search_web(settings, query, category="general", time_range=""):
 
 async def weather(location):
     location = location.strip()[:120]
-    if not location:
+    names, country = geocoding_names(location)
+    if not names:
         raise WebError("날씨를 확인할 지역을 입력하세요. 예: /날씨 서울")
-    geo = await request_json(
-        "GET",
-        "https://geocoding-api.open-meteo.com/v1/search",
-        params={"name": location, "count": 5, "language": "ko", "format": "json"},
-    )
-    places = geo.get("results") or []
+    places = []
+    for name in names:
+        try:
+            geo = await request_json(
+                "GET",
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params={
+                    "name": name,
+                    "count": 5,
+                    "language": "ko",
+                    "format": "json",
+                    **({"countryCode": country} if country else {}),
+                },
+            )
+        except WebError as error:
+            raise WebError(f"Open-Meteo 지역 검색 실패: {error}") from None
+        places = [
+            place
+            for place in (geo.get("results") or [])[:5]
+            if isinstance(place, dict)
+            and (not country or place.get("country_code") == country)
+        ]
+        if places:
+            break
     if not places:
         raise WebError(
-            "해당 지역을 찾지 못했습니다. 도시명과 국가를 더 구체적으로 입력하세요."
+            f"Open-Meteo에서 지역 '{location}'을 찾지 못했습니다. "
+            "도시명 또는 영문 도시명과 국가를 확인해 주세요. 예: /날씨 Seoul, South Korea"
         )
     place = places[0]
     try:
@@ -213,26 +234,63 @@ async def weather(location):
         "current": "temperature_2m,precipitation,wind_speed_10m,weather_code",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max",
         "timezone": "auto",
-        "forecast_days": 3,
+        "forecast_days": 7,
     }
-    data = await request_json(
-        "GET", "https://api.open-meteo.com/v1/forecast", params=params
-    )
+    try:
+        data = await request_json(
+            "GET", "https://api.open-meteo.com/v1/forecast", params=params
+        )
+    except WebError as error:
+        raise WebError(f"Open-Meteo 날씨 조회 실패: {error}") from None
     if not data.get("current", {}).get("time") or not data.get("daily", {}).get("time"):
         raise WebError(
             "기준 시각 또는 예보가 없는 날씨 응답입니다. 수치를 확인할 수 없습니다."
         )
+    # Keep only the requested fields and seven dates so the entire weather
+    # evidence fits the model context without truncating JSON or the final days.
+    current_keys = (
+        "time",
+        "temperature_2m",
+        "precipitation",
+        "wind_speed_10m",
+        "weather_code",
+    )
+    daily_keys = (
+        "time",
+        "weather_code",
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "precipitation_sum",
+        "wind_speed_10m_max",
+    )
+    current = {key: data["current"].get(key) for key in current_keys}
+    daily = {key: data["daily"].get(key, [])[:7] for key in daily_keys}
+    # Provider data is untrusted: reject nested/oversized field values.
+    for values in (current.values(), *(daily[key] for key in daily_keys)):
+        if any(
+            value is not None
+            and (not isinstance(value, (str, int, float)) or len(str(value)) > 80)
+            for value in values
+        ):
+            raise WebError("Open-Meteo 날씨 데이터 형식을 확인할 수 없습니다.")
     detail = {
         "location": ", ".join(
-            str(place[k]) for k in ("name", "admin1", "country") if place.get(k)
+            str(place[k])[:120] for k in ("name", "admin1", "country") if place.get(k)
         ),
         "latitude": latitude,
         "longitude": longitude,
-        "timezone": data.get("timezone"),
-        "current": data["current"],
-        "current_units": data.get("current_units", {}),
-        "daily": data["daily"],
-        "daily_units": data.get("daily_units", {}),
+        "timezone": str(data.get("timezone") or "")[:80],
+        "current": current,
+        "current_units": {
+            key: str(data.get("current_units", {}).get(key, ""))[:30]
+            for key in current_keys
+        },
+        "daily": daily,
+        "daily_units": {
+            key: str(data.get("daily_units", {}).get(key, ""))[:30]
+            for key in daily_keys
+        },
+        "forecast_period": "조회 지역의 오늘부터 최대 7일. 날짜별 time에 있는 기간만 확인 가능합니다.",
         "time_basis": "Open-Meteo 모델 기반 현재값의 기준 시각이며 관측소 실측값은 아닙니다.",
     }
     import json
@@ -240,7 +298,7 @@ async def weather(location):
     entry = {
         "title": "Open-Meteo · " + detail["location"],
         "url": "https://api.open-meteo.com/v1/forecast?" + urlencode(params),
-        "summary": json.dumps(detail, ensure_ascii=False),
+        "summary": json.dumps(detail, ensure_ascii=False, separators=(",", ":")),
         "published_at": None,
         "event_date": None,
         "observed_at": data["current"]["time"],

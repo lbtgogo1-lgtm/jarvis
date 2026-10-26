@@ -214,11 +214,11 @@ async def browser_checks(artifacts):
                 "wind_speed_10m": "km/h",
             },
             "daily": {
-                "time": ["2026-10-27"],
-                "temperature_2m_max": [20],
-                "temperature_2m_min": [10],
-                "precipitation_sum": [1],
-                "wind_speed_10m_max": [9],
+                "time": [f"2026-10-{day}" for day in range(26, 32)] + ["2026-11-01"],
+                "temperature_2m_max": [20] * 7,
+                "temperature_2m_min": [10] * 7,
+                "precipitation_sum": [1] * 7,
+                "wind_speed_10m_max": [9] * 7,
             },
             "daily_units": {
                 "temperature_2m_max": "°C",
@@ -265,6 +265,7 @@ async def browser_checks(artifacts):
         await page.locator("#form button").click()
         await page.locator(".source-card").last.filter(has_text="17.5 °C").wait_for()
         assert "2026-10-27 예보" in await page.locator(".source-card").last.inner_text()
+        assert "2026-11-01 예보" in await page.locator(".source-card").last.inner_text()
         assert "Asia/Seoul" in await page.locator(".source-card").last.inner_text()
         await page.set_viewport_size({"width": 390, "height": 844})
         assert await page.evaluate("document.documentElement.scrollWidth <= innerWidth")

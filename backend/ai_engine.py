@@ -23,7 +23,7 @@ async def plan_tools(settings, messages, tools):
                 "messages": [
                     {
                         "role": "system",
-                        "content": "필요한 인터넷 도구만 선택하세요. 검색어에는 질문과 관련된 최소 정보만 넣으세요. 날씨는 get_weather를 사용하고 사용자가 말하지 않은 지역을 추측하지 마세요. URL은 사용자 제공 주소만 지정하세요.",
+                        "content": "필요한 인터넷 도구만 선택하세요. 검색어에는 질문과 관련된 최소 정보만 넣으세요. 날씨는 get_weather를 사용하고 location에는 도시명과 필요한 국가만 넣으세요. 오늘·이번주·구글에서·알려줘 같은 문구는 location에 포함하지 마세요. 사용자가 말하지 않은 지역을 추측하지 마세요. URL은 사용자 제공 주소만 지정하세요.",
                     }
                 ]
                 + messages[-6:],

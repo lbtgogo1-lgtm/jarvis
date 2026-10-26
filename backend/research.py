@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from . import ai_engine as ai
 from . import web_tools as web
 from .public_web import WebError, public_url, read_public_page
+from .weather_locations import extract_location
 
 
 class SearchArgs(BaseModel):
@@ -51,7 +52,7 @@ TOOLS = [
         ),
         (
             "get_weather",
-            "도시명을 지정하여 Open-Meteo 현재 날씨 및 3일 예보 조회. 지역을 추측하지 마세요.",
+            "도시명을 지정하여 Open-Meteo 현재 날씨 및 오늘부터 7일 예보 조회. 시간 표현이나 요청 문구를 지역명에 넣지 말고 지역을 추측하지 마세요.",
         ),
         (
             "read_page",
@@ -111,14 +112,7 @@ def intent(text):
 
 
 def fallback_location(text):
-    explicit = re.match(r"^/(?:날씨|weather)\s+(.+)$", text.strip(), re.I)
-    if explicit:
-        return explicit.group(1).strip()[:120]
-    # Only derive a location stated in the question; never default to Seoul/IP location.
-    before = re.split(r"날씨|기온|강수|풍속|일기예보", text, maxsplit=1)[0]
-    before = re.sub(r"오늘|내일|모레|현재|지금|실시간|자비스[,，]?", "", before)
-    before = re.sub(r"(?:의|에서|은|는)\s*$", "", before.strip()).strip()
-    return before[:120] if before and len(before.split()) <= 4 else ""
+    return extract_location(text)
 
 
 def fallback_call(text, request):
@@ -153,6 +147,8 @@ def evidence_messages(settings, history, sources, exchanges):
         "날짜가 없으면 미확인이라고 하세요. 검색 순위가 최신순이라는 보장은 없습니다. "
         "날씨 current.time은 해당 timezone의 모델 기반 현재값 기준 시각이며 관측소 실측이라고 하지 마세요. "
         "현재 날씨와 일별 예보를 구분하고 단위를 보존하세요. 서로 다른 지역·날짜 자료를 섞지 마세요. "
+        "날씨 예보는 조회 지역의 오늘부터 최대 7일입니다. 요청 기간 중 자료가 있는 날짜만 답하고 "
+        "지난 날짜나 예보 범위 밖 날짜는 확인하지 못했다고 하세요. 7일 예보를 무조건 이번 주 전체라고 하지 마세요. "
         "실시간/지연 여부와 확인 가능한 공급자가 없는 주가·환율·시세 수치를 제시하지 마세요. "
         "불확실하거나 자료가 부족하면 솔직히 말하세요. URL이나 수치를 만들어내지 마세요."
     )
@@ -254,7 +250,9 @@ async def _prepare(settings, history, text, request, result):
             if c["name"] == "get_weather"
             and c["arguments"]["location"].lower().replace(" ", "") in user_text
         ][:1]
-        if not calls and fallback:
+        # A place in the current request takes precedence over a stale or malformed
+        # model call, including English translations rejected by literal grounding.
+        if fallback:
             calls = [fallback]
         if not calls:
             return result | {"answer": "어느 지역의 날씨를 확인할까요? 예: /날씨 서울"}
@@ -297,9 +295,10 @@ async def _prepare(settings, history, text, request, result):
                 evidence = {
                     k: v for k, v in source.items() if k not in ("weather", "url")
                 }
-                evidence["summary"] = evidence["summary"][
-                    : 2000 if source["kind"] in ("weather", "page") else 800
-                ]
+                if source["kind"] != "weather":
+                    evidence["summary"] = evidence["summary"][
+                        : 2000 if source["kind"] == "page" else 800
+                    ]
                 added.append(evidence)
             exchanges.append(
                 (
@@ -340,7 +339,11 @@ async def _prepare(settings, history, text, request, result):
         )
     elif not sources:
         result["answer"] = (
-            "확인 가능한 인터넷 자료를 가져오지 못했습니다. 검색 서비스와 연결을 확인한 뒤 다시 시도해 주세요. 최신 정보나 날씨를 임의로 만들어 답변하지 않겠습니다."
+            "Open-Meteo에서 해당 지역의 날씨를 가져오지 못했습니다. 아래 원인과 지역명을 확인해 주세요. "
+            "WEB CONNECTED는 검색 서비스 연결 상태이므로 개별 날씨 조회 성공을 뜻하지 않습니다. "
+            "확인되지 않은 날씨 수치는 제공하지 않습니다."
+            if request["weather"]
+            else "확인 가능한 인터넷 자료를 가져오지 못했습니다. 검색 서비스와 연결을 확인한 뒤 다시 시도해 주세요. 최신 정보나 날씨를 임의로 만들어 답변하지 않겠습니다."
         )
     else:
         result["messages"] = evidence_messages(settings, history, sources, exchanges)

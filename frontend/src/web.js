@@ -40,7 +40,8 @@ function weatherCard(parent, weather) {
   );
   const daily = weather.daily || {},
     du = weather.daily_units || {};
-  (daily.time || []).slice(0, 3).forEach((date, i) => {
+  if (weather.forecast_period) line(parent, weather.forecast_period, "source-meta");
+  (daily.time || []).slice(0, 7).forEach((date, i) => {
     const value = (key) =>
       daily[key]?.[i] == null ? "미확인" : `${daily[key][i]} ${du[key] || ""}`;
     line(

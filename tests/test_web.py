@@ -282,6 +282,7 @@ def test_weather_exact_source_time_units_and_coordinates(monkeypatch):
                     {
                         "name": "서울",
                         "country": "대한민국",
+                        "country_code": "KR",
                         "latitude": 37.56,
                         "longitude": 126.98,
                     }
