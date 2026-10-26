@@ -1,4 +1,4 @@
-import sqlite3, uuid
+import json, sqlite3, uuid
 from .config import DATA
 
 
@@ -14,6 +14,11 @@ def init():
         db.executescript(
             'CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, title TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, memory TEXT DEFAULT ""); CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, session TEXT REFERENCES sessions(id) ON DELETE CASCADE, role TEXT, content TEXT);'
         )
+        columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+        if "sources" not in columns:
+            db.execute(
+                "ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'"
+            )
 
 
 def sessions():
@@ -43,19 +48,24 @@ def exists(sid):
 
 def messages(sid):
     with connection() as db:
-        return [
-            dict(r)
-            for r in db.execute(
-                "SELECT role,content FROM messages WHERE session=? ORDER BY id", (sid,)
-            )
-        ]
+        result = []
+        for row in db.execute(
+            "SELECT role,content,sources FROM messages WHERE session=? ORDER BY id",
+            (sid,),
+        ):
+            item = {"role": row["role"], "content": row["content"]}
+            sources = json.loads(row["sources"])
+            if sources:
+                item["sources"] = sources
+            result.append(item)
+        return result
 
 
-def add(sid, role, text):
+def add(sid, role, text, sources=None):
     with connection() as db:
         db.execute(
-            "INSERT INTO messages(session,role,content) VALUES(?,?,?)",
-            (sid, role, text),
+            "INSERT INTO messages(session,role,content,sources) VALUES(?,?,?,?)",
+            (sid, role, text, json.dumps(sources or [], ensure_ascii=False)),
         )
         if role == "user":
             db.execute(
@@ -83,7 +93,7 @@ def context(sid):
     for m in reversed(messages(sid)[-24:]):
         if size + len(m["content"]) > 24000:
             break
-        recent.insert(0, m)
+        recent.insert(0, {"role": m["role"], "content": m["content"]})
         size += len(m["content"])
     return (
         [{"role": "system", "content": "이전 대화 요약: " + memory}] if memory else []

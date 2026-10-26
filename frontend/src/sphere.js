@@ -22,6 +22,7 @@ export class Sphere {
       audio: { value: 0 },
       intensity: { value: 0 },
       pointSize: { value: 1 },
+      searching: { value: 0 },
     };
     this.core = new T.Mesh(
       new T.SphereGeometry(0.92, 64, 48),
@@ -126,6 +127,7 @@ export class Sphere {
       TRANSCRIBING: 0.9,
       THINKING: 1.5,
       SPEAKING: 1.1,
+      SEARCHING: 2,
     }[this.state];
     this.energy += (target - this.energy) * (1 - Math.exp(-dt * 4));
     let approximate =
@@ -135,6 +137,10 @@ export class Sphere {
       (Math.max(this.level, approximate) - this.uniforms.audio.value) *
       (1 - Math.exp(-dt * 12));
     this.uniforms.intensity.value = this.energy;
+    this.uniforms.searching.value +=
+      ((this.state === "SEARCHING" ? 1 : 0) - this.uniforms.searching.value) *
+      (1 - Math.exp(-dt * 5));
+    this.points.rotation.y += dt * this.uniforms.searching.value * 1.7;
     this.group.rotation.y += dt * (0.09 + this.energy * 0.15);
     this.wire.rotation.x += dt * 0.035;
     this.rings.forEach((r, i) => {

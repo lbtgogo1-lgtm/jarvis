@@ -17,6 +17,7 @@
     <main>
       <aside>
         <h3>SYSTEM TELEMETRY</h3>
+        <p id="web-status" title="인터넷 검색 OFF">OFFLINE</p>
         <pre id="health">시스템 확인 중</pre>
         <button id="refresh">연결 재확인</button>
         <h3>CONVERSATIONS</h3>
@@ -66,6 +67,38 @@
     <dialog id="dialog">
       <h2>시스템 설정</h2>
       <form id="config">
+        <fieldset>
+          <legend>인터넷 정보</legend>
+          <label
+            ><input type="checkbox" id="web_enabled" /> 인터넷 검색 ON</label
+          >
+          <label
+            >검색 제공자<select id="web_provider">
+              <option value="searxng">SearXNG · 로컬 무료 검색</option>
+              <option value="tavily">Tavily · 선택 API 키 필요</option>
+            </select></label
+          >
+          <label
+            >SearXNG 주소<input
+              id="searxng_url"
+              type="url"
+              value="http://127.0.0.1:8080"
+          /></label>
+          <label
+            ><input type="checkbox" id="web_fetch_pages" /> 검색 결과의 공개
+            본문도 읽기</label
+          >
+          <p>
+            켜면 검색어·지역명·요청 URL이 해당 외부 서비스에 전달됩니다. Tavily
+            키는 TAVILY_API_KEY 환경변수로만 설정합니다.
+          </p>
+          <button id="web-check" type="button">
+            저장된 설정으로 연결·JSON 점검
+          </button>
+          <p id="web-help">
+            기본 OFF · 일반 로컬 대화는 인터넷 없이 사용 가능합니다.
+          </p>
+        </fieldset>
         <label>설치된 AI 모델<select id="model"></select></label
         ><label
           >Temperature<input
@@ -90,7 +123,15 @@
             <option>MEDIUM</option>
             <option>HIGH</option>
           </select></label
-        ><label>입자 크기<input id="particle_size" type="number" min="0.5" max="3" step="0.1" value="1"></label><label>오프라인 한국어 음성<select id="voice"></select></label
+        ><label
+          >입자 크기<input
+            id="particle_size"
+            type="number"
+            min="0.5"
+            max="3"
+            step="0.1"
+            value="1" /></label
+        ><label>오프라인 한국어 음성<select id="voice"></select></label
         ><label
           >말하기 속도<input
             id="rate"

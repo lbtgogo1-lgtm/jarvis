@@ -10,6 +10,32 @@ async def models():
         return [m["name"] for m in r.json()["models"]]
 
 
+async def plan_tools(settings, messages, tools):
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(15, connect=3), trust_env=False
+    ) as client:
+        response = await client.post(
+            URL + "/api/chat",
+            json={
+                "model": settings["model"],
+                "stream": False,
+                "think": False,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "필요한 인터넷 도구만 선택하세요. 검색어에는 질문과 관련된 최소 정보만 넣으세요. 날씨는 get_weather를 사용하고 사용자가 말하지 않은 지역을 추측하지 마세요. URL은 사용자 제공 주소만 지정하세요.",
+                    }
+                ]
+                + messages[-6:],
+                "tools": tools,
+                "options": {"temperature": 0, "num_predict": 256, "num_ctx": 8192},
+            },
+        )
+        response.raise_for_status()
+        calls = response.json().get("message", {}).get("tool_calls", [])
+        return calls if isinstance(calls, list) else []
+
+
 async def stream(settings, messages):
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(180, connect=5), trust_env=False

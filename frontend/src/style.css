@@ -263,3 +263,54 @@ dialog p {
     font-size: 26px;
   }
 }
+#web-status {
+  font: 11px monospace;
+  letter-spacing: 2px;
+  color: #7894a2;
+}
+#web-status[data-online="true"] {
+  color: #55dfff;
+}
+.sources {
+  margin-top: 14px;
+  border-top: 1px solid #24536a;
+  padding-top: 8px;
+  font-size: 12px;
+  white-space: normal;
+}
+.source-card {
+  margin: 10px 0;
+  padding: 10px;
+  background: #061822;
+  border: 1px solid #1a4052;
+  overflow-wrap: anywhere;
+}
+.source-card a {
+  color: #68ddff;
+  text-decoration: underline;
+}
+.source-card p {
+  margin: 6px 0;
+}
+.source-meta {
+  font-size: 10px;
+  color: #8caebc;
+}
+.source-warning {
+  color: #ffbd82;
+}
+.source-card summary {
+  cursor: pointer;
+  color: #a4c9d5;
+}
+.source-card details p {
+  white-space: pre-wrap;
+}
+fieldset {
+  border: 1px solid #24536a;
+  margin: 12px 0;
+  padding: 12px;
+}
+fieldset input[type="url"] {
+  width: 100%;
+}

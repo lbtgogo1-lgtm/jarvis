@@ -2,6 +2,10 @@
 
 Three.js/GLSL 에너지 구체, FastAPI, Ollama 스트리밍, faster-whisper 한국어 STT, 오프라인 한국어 브라우저 TTS, SQLite 기록을 사용하는 Windows용 소스 프로젝트입니다. 유료 API 키는 필요하지 않습니다. AI가 시스템 명령을 실행하는 기능은 없습니다.
 
+## 선택 기능: 인터넷 검색·날씨
+
+SearXNG 무료 검색, 선택 Tavily, Open-Meteo 날씨, 출처 저장 및 SEARCHING 애니메이션을 추가했습니다. 기본은 인터넷 OFF입니다. **설치·사용·제한 사항은 [WEB_SEARCH.md](WEB_SEARCH.md)**를 참고하세요. 기존 `setup.bat` → `start.bat` 실행 방식은 유지하며, 인터넷 검색은 Docker Desktop 설치 후 `setup_web.bat`으로 별도 준비합니다.
+
 ## Windows 11 설치
 
 1. Python **3.11 또는 3.12**, Node.js **22 LTS 이상**, Google Chrome, [Ollama](https://ollama.com)를 직접 설치하세요. Python은 PATH에 추가하세요. 관리자 권한 설치를 자동으로 실행하지 않습니다.
@@ -89,7 +93,7 @@ npm run build
 ### 현재 검증 범위
 
 - Linux Python 3.12에서 의존성 설치 및 `pip check`, Vite 프로덕션 빌드 통과.
-- API·런처 테스트 총 18개 통과. 기존 API 검사에 독립적인 준비 상태 확인, 실제 서버 프로세스의 시작·HTTP·종료, 시작 실패 로그 및 잠금 해제, 브라우저 실패 시 수동 접속 안내, 포트 충돌 처리를 추가했습니다. Windows의 `.bat` 및 기본 브라우저 연결은 실기 미검증입니다. **AI/STT 성공 경로 테스트는 테스트 대역을 사용하며 실제 추론 증거가 아닙니다.**
+- 기존 API·런처 18개와 검색 확장 35개, 총 53개 테스트가 통과했습니다. 기존 API 검사에 독립적인 준비 상태 확인, 실제 서버 프로세스의 시작·HTTP·종료, 시작 실패 로그 및 잠금 해제, 브라우저 실패 시 수동 접속 안내, 포트 충돌 처리를 추가했습니다. Windows의 `.bat` 및 기본 브라우저 연결은 실기 미검증입니다. **AI/STT 성공 경로 테스트는 테스트 대역을 사용하며 실제 추론 증거가 아닙니다.**
 - 실제 서버의 HUD 및 상태 API HTTP 200 확인. 상세 브라우저 결과는 `VALIDATION.md` 참고.
 - 이 클라우드에는 Ollama/NVIDIA GPU/실제 마이크/Windows 음성이 없어 실제 AI 답변 품질, 실제 한국어 STT/TTS, 완전 오프라인 통합 및 `.bat` 실행은 미검증입니다. 완료로 간주하지 마세요.
 

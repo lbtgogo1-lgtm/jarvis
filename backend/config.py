@@ -10,6 +10,10 @@ DEFAULT = dict(
     stt_model="small",
     quality="MEDIUM",
     particle_size=1.0,
+    web_enabled=False,
+    web_provider="searxng",
+    searxng_url="http://127.0.0.1:8080",
+    web_fetch_pages=False,
     personality=(ROOT / "config/jarvis_personality.txt").read_text(encoding="utf-8"),
 )
 

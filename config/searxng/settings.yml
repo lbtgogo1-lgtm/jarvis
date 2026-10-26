@@ -1,0 +1,27 @@
+use_default_settings:
+  engines:
+    keep_only: [duckduckgo, bing, google, google news, bing news]
+general:
+  instance_name: JARVIS Local Search
+search:
+  safe_search: 1
+  default_lang: ko-KR
+  formats: [html, json]
+server:
+  secret_key: "GENERATE_LOCAL_SECRET"
+  limiter: false
+  image_proxy: false
+outgoing:
+  request_timeout: 5
+  max_request_timeout: 8
+engines:
+  - name: duckduckgo
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: google
+    disabled: false
+  - name: google news
+    disabled: false
+  - name: bing news
+    disabled: false

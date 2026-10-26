@@ -1,6 +1,7 @@
 import "./style.css";
 import { Sphere } from "./sphere";
 import { Voice } from "./audio";
+import { refreshWeb, webState, finishWeb, renderSources } from "./web";
 const $ = (s) => document.querySelector(s);
 let sphere;
 try {
@@ -24,6 +25,7 @@ const state = (s) => {
     TRANSCRIBING: "PROCESSING VOICE",
     THINKING: "PROCESSING",
     SPEAKING: "J.A.R.V.I.S. SPEAKING",
+    SEARCHING: "SEARCHING WEB",
   }[s];
 };
 const error = (e) => ($("#error").textContent = e.message || String(e));
@@ -78,7 +80,10 @@ async function load(id) {
   voice.stopSpeaking();
   sid = id;
   $("#messages").replaceChildren();
-  for (let m of await api("/sessions/" + sid)) message(m.role, m.content);
+  for (let m of await api("/sessions/" + sid)) {
+    const output = message(m.role, m.content);
+    renderSources(output, m.sources);
+  }
   await sessions();
 }
 async function fresh() {
@@ -86,6 +91,7 @@ async function fresh() {
   await load(s.id);
 }
 async function refresh() {
+  refreshWeb().catch(() => webState("OFFLINE", "검색 연결 상태 확인 실패"));
   health = await api("/health");
   $("#health").textContent =
     `SERVER • ONLINE\nOLLAMA • ${health.ollama ? "ONLINE" : "OFFLINE"}\nMODEL • ${settings.model}\nINSTALLED • ${health.selected_installed ? "YES" : "NO"}\nSTT • ${health.stt.loaded ? health.stt.device : "미로딩"}\nGPU • ${health.gpu || "조회 불가"}\nMIC • ${navigator.mediaDevices ? "권한 요청 대기" : "사용 불가"}\nTTS • ${voice.voices.length ? "LOCAL KO" : "오프라인 음성 없음"}`;
@@ -157,6 +163,10 @@ async function send(text) {
         if (!line) continue;
         let e = JSON.parse(line);
         if (e.error) throw Error(e.error);
+        if (["SEARCHING", "THINKING"].includes(e.state)) state(e.state);
+        if (e.web) webState(e.web);
+        if (e.sources || e.warnings)
+          renderSources(output, e.sources, e.warnings);
         if (e.token) {
           answer += e.token;
           output.textContent = answer;
@@ -174,6 +184,7 @@ async function send(text) {
       : "[응답 없음]";
   } finally {
     busy = false;
+    finishWeb();
     state("IDLE");
     controls();
     await sessions();
@@ -273,8 +284,12 @@ $("#settings").onclick = async () => {
       "quality",
       "personality",
       "particle_size",
+      "web_provider",
+      "searxng_url",
     ])
       $("#" + key).value = settings[key];
+    $("#web_enabled").checked = settings.web_enabled;
+    $("#web_fetch_pages").checked = settings.web_fetch_pages;
     $("#model").replaceChildren(
       ...[...new Set([settings.model, ...health.models])].map(
         (m) => new Option(m, m),
@@ -297,8 +312,14 @@ $("#config").onsubmit = async (e) => {
       "quality",
       "personality",
       "particle_size",
+      "web_provider",
+      "searxng_url",
     ])
       next[key] = $("#" + key).value;
+    next.web_enabled = $("#web_enabled").checked;
+    next.web_fetch_pages = $("#web_fetch_pages").checked;
+    if (!next.web_enabled && $("#state").textContent === "SEARCHING WEB")
+      aborter?.abort();
     next.temperature = Number($("#temperature").value);
     settings = await api("/settings", json("PUT", next));
     sphere?.setQuality(settings.quality);
@@ -310,6 +331,16 @@ $("#config").onsubmit = async (e) => {
   }
 };
 $("#close").onclick = () => $("#dialog").close();
+$("#web-check").onclick = async () => {
+  $("#web-check").disabled = true;
+  try {
+    await refreshWeb(true);
+  } catch (e) {
+    error(e);
+  } finally {
+    $("#web-check").disabled = false;
+  }
+};
 $("#fullscreen").onclick = () => {
   (document.fullscreenElement
     ? document.exitFullscreen()

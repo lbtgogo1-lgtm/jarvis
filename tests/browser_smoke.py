@@ -38,7 +38,7 @@ async def main():
         await page.locator("#settings").click()
         await page.wait_for_selector("dialog[open]")
         await page.locator("#quality").select_option("LOW")
-        await page.locator("#config button[type=button]").click()
+        await page.locator("#close").click()
         await page.screenshot(path="/workspace/jarvis/data/hud-desktop.png")
         # Explicit fixtures exercise frontend streaming/recording only, never real AI/STT.
         await page.route(

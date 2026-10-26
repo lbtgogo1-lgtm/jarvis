@@ -3,8 +3,10 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, Request
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal
 from backend import config, database as db, ai_engine as ai, speech_to_text as stt
+from backend import research, web_tools
 from backend.health import gpu
 
 app = FastAPI(title="J.A.R.V.I.S. Local")
@@ -36,6 +38,15 @@ class Settings(BaseModel):
     quality: str = Field(pattern="^(LOW|MEDIUM|HIGH)$")
     particle_size: float = Field(default=1.0, ge=0.5, le=3)
     personality: str = Field(min_length=1, max_length=12000)
+    web_enabled: bool = False
+    web_provider: Literal["searxng", "tavily"] = "searxng"
+    searxng_url: str = Field(default="http://127.0.0.1:8080", max_length=250)
+    web_fetch_pages: bool = False
+
+    @field_validator("searxng_url")
+    @classmethod
+    def local_search_only(cls, value):
+        return web_tools.searxng_url(value)
 
 
 class Chat(BaseModel):
@@ -86,6 +97,16 @@ def settings():
 def put_settings(value: Settings):
     config.save(value.model_dump())
     return value
+
+
+@app.get("/api/web/status")
+async def web_status():
+    return await web_tools.web_status(config.load())
+
+
+@app.post("/api/web/check")
+async def check_web():
+    return await web_tools.web_status(config.load(), force=True)
 
 
 @app.get("/api/sessions")
@@ -154,15 +175,43 @@ async def chat(sid: str, value: Chat, request: Request):
 
     async def events():
         answer = ""
+        sources = []
         try:
-            async for token in ai.stream(settings, db.context(sid)):
+            context = db.context(sid)
+            prepared = None
+            if research.intent(value.text):
+                if settings.get("web_enabled"):
+                    yield json.dumps(
+                        {"state": "SEARCHING", "web": "SEARCHING WEB"}
+                    ) + "\n"
+                prepared = await research.prepare(settings, context, value.text)
+                if await request.is_disconnected():
+                    return
+                sources = prepared["sources"]
+                yield json.dumps(
+                    {
+                        "sources": sources,
+                        "warnings": prepared["warnings"],
+                        "web": "WEB CONNECTED" if prepared["connected"] else "OFFLINE",
+                    },
+                    ensure_ascii=False,
+                ) + "\n"
+                context = prepared["messages"]
+                yield json.dumps({"state": "THINKING"}) + "\n"
+            if prepared and prepared["answer"] is not None:
+                answer = prepared["answer"]
+                yield json.dumps({"token": answer}, ensure_ascii=False) + "\n"
+                db.add(sid, "assistant", answer, sources)
+                yield json.dumps({"done": True}) + "\n"
+                return
+            async for token in ai.stream(settings, context):
                 if await request.is_disconnected():
                     break
                 answer += token
                 yield json.dumps({"token": token}, ensure_ascii=False) + "\n"
             else:
                 if answer:
-                    db.add(sid, "assistant", answer)
+                    db.add(sid, "assistant", answer, sources)
                 yield json.dumps({"done": True}) + "\n"
         except asyncio.CancelledError:
             raise
