@@ -1,7 +1,7 @@
 import "./style.css";
 import { Sphere } from "./sphere";
 import { Voice } from "./audio";
-import { refreshWeb, webState, finishWeb, renderSources } from "./web";
+import { refreshWeb, webState, finishWeb, renderSources, renderSearchLinks, searchURL } from "./web";
 const $ = (s) => document.querySelector(s);
 let sphere;
 try {
@@ -83,6 +83,7 @@ async function load(id) {
   for (let m of await api("/sessions/" + sid)) {
     const output = message(m.role, m.content);
     renderSources(output, m.sources);
+    renderSearchLinks(output, m.search_links);
   }
   await sessions();
 }
@@ -167,6 +168,7 @@ async function send(text) {
         if (e.web) webState(e.web);
         if (e.sources || e.warnings)
           renderSources(output, e.sources, e.warnings);
+        if (e.search_links) renderSearchLinks(output, e.search_links);
         if (e.token) {
           answer += e.token;
           output.textContent = answer;
@@ -201,6 +203,16 @@ $("#cancel").onclick = () => {
   aborter?.abort();
   voice.stopSpeaking();
 };
+for (const engine of ["google", "naver"]) {
+  $("#open-" + engine).onclick = () => {
+    if (!settings?.web_enabled) {
+      error("설정에서 인터넷 검색을 켜 주세요.");
+      return;
+    }
+    // A direct button click preserves browser user activation for the new tab.
+    window.open(searchURL(engine, $("#input").value), "_blank", "noopener,noreferrer");
+  };
+}
 async function record() {
   try {
     if (voice.recording) {

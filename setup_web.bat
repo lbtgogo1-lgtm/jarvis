@@ -17,14 +17,14 @@ if not exist ".venv\Scripts\python.exe" (
     echo Run setup.bat successfully before setup_web.bat.
     goto failed
 )
-".venv\Scripts\python.exe" -c "import httpx, httpcore, bs4" >nul 2>nul
+".venv\Scripts\python.exe" -c "import httpx, httpcore, bs4, yaml" >nul 2>nul
 if errorlevel 1 (
     echo New web dependencies are missing. Run the updated setup.bat first.
     goto failed
 )
 ".venv\Scripts\python.exe" prepare_web.py
 if errorlevel 1 goto failed
-docker compose -f compose.searxng.yml up -d --wait --wait-timeout 120
+docker compose -f compose.searxng.yml up -d --force-recreate --wait --wait-timeout 120
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" check_web.py
 if errorlevel 1 goto failed

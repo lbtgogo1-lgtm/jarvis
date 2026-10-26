@@ -101,11 +101,14 @@ def source(item, provider, kind="search"):
     }
 
 
-async def search_web(settings, query, category="general", time_range=""):
+async def search_web(settings, query, category="general", time_range="", engine=""):
     query = query.strip()[:500]
     if not query:
         raise WebError("검색어를 입력하세요.")
-    provider = settings.get("web_provider", "searxng")
+    if engine not in ("", "google", "naver"):
+        raise WebError("지원하지 않는 검색 엔진입니다.")
+    provider = "searxng" if engine else settings.get("web_provider", "searxng")
+    selected = engine + (" news" if category == "news" else "") if engine else ""
     if provider == "tavily":
         key = os.environ.get("TAVILY_API_KEY", "")
         if not key:
@@ -127,6 +130,17 @@ async def search_web(settings, query, category="general", time_range=""):
         )
     else:
         base = searxng_url(settings.get("searxng_url", "http://127.0.0.1:8080"))
+        if selected:
+            configuration = await request_json("GET", base + "/config", local=True)
+            if not any(
+                e.get("name") == selected
+                and e.get("enabled", not e.get("disabled", False))
+                for e in configuration.get("engines", [])
+                if isinstance(e, dict)
+            ):
+                raise WebError(
+                    f"SearXNG에 {selected} 엔진이 활성화되어 있지 않습니다. 최신 setup_web.bat을 실행하거나 아래 버튼으로 사이트에서 직접 검색하세요."
+                )
         payload = await request_json(
             "GET",
             base + "/search",
@@ -138,6 +152,7 @@ async def search_web(settings, query, category="general", time_range=""):
                 "categories": category,
                 "safesearch": 1,
                 "time_range": time_range,
+                **({"engines": selected} if selected else {}),
             },
         )
     if not isinstance(payload.get("results"), list):
@@ -149,8 +164,14 @@ async def search_web(settings, query, category="general", time_range=""):
     for raw in payload["results"][:20]:
         if not isinstance(raw, dict):
             continue
+        if selected and selected not in (raw.get("engines") or [raw.get("engine")]):
+            continue
         try:
-            entry = source(raw, provider, "news" if category == "news" else "search")
+            entry = source(
+                raw,
+                provider + (" · " + selected if selected else ""),
+                "news" if category == "news" else "search",
+            )
         except WebError:
             continue
         if entry["url"] not in seen:

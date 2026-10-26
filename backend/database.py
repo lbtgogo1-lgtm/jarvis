@@ -19,6 +19,10 @@ def init():
             db.execute(
                 "ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'"
             )
+        if "search_links" not in columns:
+            db.execute(
+                "ALTER TABLE messages ADD COLUMN search_links TEXT NOT NULL DEFAULT '[]'"
+            )
 
 
 def sessions():
@@ -50,22 +54,31 @@ def messages(sid):
     with connection() as db:
         result = []
         for row in db.execute(
-            "SELECT role,content,sources FROM messages WHERE session=? ORDER BY id",
+            "SELECT role,content,sources,search_links FROM messages WHERE session=? ORDER BY id",
             (sid,),
         ):
             item = {"role": row["role"], "content": row["content"]}
             sources = json.loads(row["sources"])
             if sources:
                 item["sources"] = sources
+            links = json.loads(row["search_links"])
+            if links:
+                item["search_links"] = links
             result.append(item)
         return result
 
 
-def add(sid, role, text, sources=None):
+def add(sid, role, text, sources=None, search_links=None):
     with connection() as db:
         db.execute(
-            "INSERT INTO messages(session,role,content,sources) VALUES(?,?,?,?)",
-            (sid, role, text, json.dumps(sources or [], ensure_ascii=False)),
+            "INSERT INTO messages(session,role,content,sources,search_links) VALUES(?,?,?,?,?)",
+            (
+                sid,
+                role,
+                text,
+                json.dumps(sources or [], ensure_ascii=False),
+                json.dumps(search_links or [], ensure_ascii=False),
+            ),
         )
         if role == "user":
             db.execute(

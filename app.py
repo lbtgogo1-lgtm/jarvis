@@ -158,16 +158,19 @@ async def chat(sid: str, value: Chat, request: Request):
     if sid in active:
         raise HTTPException(409, "이미 응답 중입니다.")
     settings = config.load()
-    try:
-        models = await ai.models()
-    except Exception:
-        raise HTTPException(
-            503, "Ollama 서버에 연결할 수 없습니다. ollama serve를 실행하세요."
-        )
-    if settings["model"] not in models:
-        raise HTTPException(
-            400, "선택한 모델이 없습니다. Ollama에서 직접 설치 후 다시 선택하세요."
-        )
+    navigation = research.browser_request(value.text)
+    open_only = bool(navigation and navigation["open_only"])
+    if not open_only:
+        try:
+            models = await ai.models()
+        except Exception:
+            raise HTTPException(
+                503, "Ollama 서버에 연결할 수 없습니다. ollama serve를 실행하세요."
+            )
+        if settings["model"] not in models:
+            raise HTTPException(
+                400, "선택한 모델이 없습니다. Ollama에서 직접 설치 후 다시 선택하세요."
+            )
     if sid in active:
         raise HTTPException(409, "이미 응답 중입니다.")
     active.add(sid)
@@ -176,11 +179,12 @@ async def chat(sid: str, value: Chat, request: Request):
     async def events():
         answer = ""
         sources = []
+        search_links = []
         try:
             context = db.context(sid)
             prepared = None
             if research.intent(value.text):
-                if settings.get("web_enabled"):
+                if settings.get("web_enabled") and not open_only:
                     yield json.dumps(
                         {"state": "SEARCHING", "web": "SEARCHING WEB"}
                     ) + "\n"
@@ -188,11 +192,23 @@ async def chat(sid: str, value: Chat, request: Request):
                 if await request.is_disconnected():
                     return
                 sources = prepared["sources"]
+                search_links = prepared["search_links"]
                 yield json.dumps(
                     {
                         "sources": sources,
+                        "search_links": search_links,
                         "warnings": prepared["warnings"],
-                        "web": "WEB CONNECTED" if prepared["connected"] else "OFFLINE",
+                        **(
+                            {
+                                "web": (
+                                    "WEB CONNECTED"
+                                    if prepared["connected"]
+                                    else "OFFLINE"
+                                )
+                            }
+                            if not open_only
+                            else {}
+                        ),
                     },
                     ensure_ascii=False,
                 ) + "\n"
@@ -201,7 +217,7 @@ async def chat(sid: str, value: Chat, request: Request):
             if prepared and prepared["answer"] is not None:
                 answer = prepared["answer"]
                 yield json.dumps({"token": answer}, ensure_ascii=False) + "\n"
-                db.add(sid, "assistant", answer, sources)
+                db.add(sid, "assistant", answer, sources, search_links)
                 yield json.dumps({"done": True}) + "\n"
                 return
             async for token in ai.stream(settings, context):
@@ -211,7 +227,7 @@ async def chat(sid: str, value: Chat, request: Request):
                 yield json.dumps({"token": token}, ensure_ascii=False) + "\n"
             else:
                 if answer:
-                    db.add(sid, "assistant", answer, sources)
+                    db.add(sid, "assistant", answer, sources, search_links)
                 yield json.dumps({"done": True}) + "\n"
         except asyncio.CancelledError:
             raise

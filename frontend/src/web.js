@@ -29,6 +29,34 @@ function line(parent, value, className = "") {
   parent.append(p);
   return p;
 }
+export function searchURL(engine, query = "") {
+  query = String(query).trim().slice(0, 500);
+  if (engine === "google")
+    return query ? `https://www.google.com/search?${new URLSearchParams({ q: query })}` : "https://www.google.com/";
+  if (engine === "naver")
+    return query ? `https://search.naver.com/search.naver?${new URLSearchParams({ query })}` : "https://www.naver.com/";
+  return null;
+}
+export function renderSearchLinks(output, links = []) {
+  const message = output.parentElement;
+  message.querySelector(".search-links")?.remove();
+  if (!links.length) return;
+  const container = document.createElement("div");
+  container.className = "search-links";
+  line(container, "사이트에서 직접 보기 · 새 탭으로 열립니다.", "source-meta");
+  for (const item of links.slice(0, 2)) {
+    // Rebuild only known destinations; never navigate to a model-supplied URL.
+    const url = searchURL(item.engine, item.query);
+    if (!url) continue;
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = `${item.engine === "google" ? "Google" : "네이버"}에서 열기 ↗`;
+    container.append(link);
+  }
+  message.append(container);
+}
 function weatherCard(parent, weather) {
   const current = weather.current || {},
     units = weather.current_units || {};

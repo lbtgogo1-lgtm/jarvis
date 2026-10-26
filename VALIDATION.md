@@ -76,3 +76,12 @@ Windows 설치·실제 장치 검증 단계는 README.md를 따르세요. 현재
 - `pytest -q`: **85 passed**, 기존 AnyIO DeprecationWarning 1개. 새 `tests/test_weather.py`의 32개 회귀 검사는 두 문제 문장과 명시 명령, 모델 호출 실패/영문 인자/잘못된 인자, 국가 조건 보존, 지역 누락 시 되묻기, 이전 지역보다 현재 지역 우선, 도시 이름 보존, 서비스별 실패 안내, 7일 자료 전체를 모델에 전달하는 경로를 검사합니다. 자동 테스트의 모델·API 응답은 테스트 대역입니다.
 - `npm run build` 통과. `tests/browser_web_smoke.py` 재실행 통과: 실제 WebGL·FastAPI·SQLite, 검색/취소/기록 복원/인터넷 OFF/검색 실패 후 로컬 대화, 날짜·단위·일곱 번째 날 예보 표시. 브라우저 JavaScript 예외 0개. 브라우저 성공 응답은 명시적인 테스트 대역입니다.
 - Windows 배치, 실제 Qwen3 요약 및 실제 음성 입력·출력은 이번 수정에서 실행하지 않았습니다. 사용자는 기존 `data/`를 유지한 채 파일 업데이트 → `setup.bat` → `start.bat` 후 위 두 질문으로 확인할 수 있습니다. Docker/SearXNG 설정 변경이나 재설치는 필요하지 않습니다.
+
+## Google·Naver 지정 검색 및 브라우저 열기 — 2026-10-26
+
+- `pytest -q`: **107 passed**. 신규 22개 검사는 명시 명령, 검색어 URL 인코딩, 일반/뉴스 엔진 지정, 엔진 비활성화 시 다른 엔진 결과로 대체하지 않기, 실패 시 이동 버튼 유지·출처와 구분, Ollama/외부 호출 없이 열기 버튼 제공, DB 영속성과 문맥 분리, OFF 차단, 설정 마이그레이션과 비밀값·원본 백업 보존을 확인합니다.
+- `npm run build`, `pip check` 통과. PyYAML 6.0.2는 기존 SearXNG YAML의 비밀값과 사용자 설정을 보존하며 네이버 엔진을 추가하는 용도입니다.
+- `tests/browser_web_smoke.py`: 기존 통합 검사와 함께 Google/Naver 엔진 결과 요약 흐름(테스트 대역), 이동 버튼 재로드 복원, 직접 Google 버튼 및 네이버 열기 명령으로 실제 새 탭 생성, 한국어 검색어·특수문자 인코딩, 새 탭의 `window.opener === null`을 확인했습니다. 외부 페이지는 테스트 대역이며 JavaScript 오류 0개입니다.
+- 공식 고정 SearXNG 이미지의 `naver`/`naver news` 엔진과 API 키 불필요 메타데이터를 확인했습니다. 새 설정으로 실제 컨테이너를 네트워크 없는 환경에 실행하여 `/config`의 Google, Google News, Naver, Naver News 모두 `enabled=true`임을 확인했습니다. 네이버 지정 JSON 검색은 정상 JSON을 반환하되 네트워크가 없으므로 결과 0개·`naver HTTP connection error`였으며 검색 성공으로 집계하지 않았습니다. 검증 컨테이너만 종료·제거했습니다.
+- 클라우드의 일반 HTTPS 경로로 실제 사이트 접속을 시도했습니다. Naver는 프록시 연결 오류, Google은 HTTP 200이지만 결과 목록 없이 브라우저 이동을 요구하는 HTML을 반환했습니다. 이를 실제 검색 결과 수신으로 보고하지 않습니다. 차단을 우회하지 않았습니다.
+- 사용자 Windows의 실제 Google/Naver 결과 수신 및 Qwen3 요약은 추가 확인이 필요합니다. 새 파일 적용 후 `setup.bat`과 `setup_web.bat`을 실행하여 네이버 엔진을 반영한 뒤 `구글에서 최신 AI 기술 검색해줘`, `네이버에서 영상 편집 프로그램 검색해줘`로 확인하세요. 새 탭 열기는 채팅의 열기 버튼 또는 상단 사이트 버튼으로 실행합니다.

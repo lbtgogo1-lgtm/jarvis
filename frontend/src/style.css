@@ -306,6 +306,28 @@ dialog p {
 .source-card details p {
   white-space: pre-wrap;
 }
+.search-shortcuts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.search-shortcuts button {
+  flex: 1;
+  font-size: 12px;
+}
+.search-links {
+  margin-top: 12px;
+  white-space: normal;
+}
+.search-links a {
+  display: inline-block;
+  padding: 8px;
+  margin: 4px 6px 4px 0;
+  color: #68ddff;
+  border: 1px solid #24536a;
+  border-radius: 3px;
+  font-size: 12px;
+}
 fieldset {
   border: 1px solid #24536a;
   margin: 12px 0;

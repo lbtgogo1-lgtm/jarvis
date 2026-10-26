@@ -12,6 +12,7 @@ from . import ai_engine as ai
 from . import web_tools as web
 from .public_web import WebError, public_url, read_public_page
 from .weather_locations import extract_location
+from .search_navigation import browser_request, search_links
 
 
 class SearchArgs(BaseModel):
@@ -19,6 +20,7 @@ class SearchArgs(BaseModel):
     query: str = Field(min_length=1, max_length=500)
     category: Literal["general", "news"] = "general"
     time_range: Literal["", "day", "week", "month", "year"] = ""
+    engine: Literal["", "google", "naver"] = ""
 
 
 class WeatherArgs(BaseModel):
@@ -64,6 +66,7 @@ TOOLS = [
 
 def intent(text):
     lowered = text.lower().strip()
+    navigation = browser_request(text)
     urls = re.findall(r"https?://[^\s<>\"']+", text)
     urls = [u.rstrip(".,)）]") for u in urls]
     weather = bool(re.search(r"날씨|기온|강수|풍속|일기예보|\bweather\b", lowered))
@@ -80,7 +83,8 @@ def intent(text):
     if educational and not freshness:
         weather = finance = False
     needed = (
-        weather
+        navigation
+        or weather
         or finance
         or urls
         or bool(
@@ -94,7 +98,8 @@ def intent(text):
         return None
     category = "news" if re.search(r"뉴스|news", lowered) else "general"
     force = bool(
-        weather
+        navigation
+        or weather
         or finance
         or urls
         or re.search(
@@ -108,6 +113,7 @@ def intent(text):
         "category": category,
         "time_range": "day" if "오늘" in lowered or "today" in lowered else "",
         "force": force,
+        "navigation": navigation,
     }
 
 
@@ -125,6 +131,17 @@ def fallback_call(text, request):
         )
     if request["urls"]:
         return {"name": "read_page", "arguments": {"url": request["urls"][0]}}
+    if request.get("navigation"):
+        navigation = request["navigation"]
+        return {
+            "name": "search_web",
+            "arguments": {
+                "query": navigation["query"],
+                "engine": navigation["engine"],
+                "category": request["category"],
+                "time_range": request["time_range"],
+            },
+        }
     query = re.sub(r"^/(?:검색|뉴스|search)\s*", "", text.strip(), flags=re.I)[:500]
     return {
         "name": "search_web",
@@ -151,6 +168,7 @@ def evidence_messages(settings, history, sources, exchanges):
         "지난 날짜나 예보 범위 밖 날짜는 확인하지 못했다고 하세요. 7일 예보를 무조건 이번 주 전체라고 하지 마세요. "
         "실시간/지연 여부와 확인 가능한 공급자가 없는 주가·환율·시세 수치를 제시하지 마세요. "
         "불확실하거나 자료가 부족하면 솔직히 말하세요. URL이나 수치를 만들어내지 마세요."
+        "검색 사이트 열기 버튼 제공만으로 브라우저 창을 실제로 열었다고 주장하지 마세요."
     )
     # The tool outputs are serialized data. Only the local planner ran with tools enabled.
     # Keep room for current evidence inside the existing 8K Ollama context window.
@@ -179,6 +197,7 @@ async def prepare(settings, history, text):
     empty = {
         "messages": history,
         "sources": [],
+        "search_links": [],
         "warnings": [],
         "answer": None,
         "connected": False,
@@ -191,6 +210,17 @@ async def prepare(settings, history, text):
         return empty | {
             "answer": "인터넷 검색이 OFF 상태여서 최신 정보를 확인할 수 없습니다. 설정에서 인터넷 검색을 켜 주세요. 일반적인 로컬 대화는 계속 사용할 수 있습니다."
         }
+    navigation = request.get("navigation")
+    if navigation:
+        empty["search_links"] = search_links(navigation["query"], navigation["engine"])
+        if navigation["open_only"]:
+            return empty | {
+                "answer": "아래 열기 버튼을 누르면 해당 사이트가 새 탭에서 열립니다. 검색 결과는 아직 조회하거나 요약하지 않았습니다."
+            }
+        if not navigation["query"]:
+            return empty | {
+                "answer": "검색어를 함께 입력해 주세요. 예: 구글에서 최신 AI 기술 검색해줘"
+            }
     try:
         async with asyncio.timeout(55):
             return await _prepare(settings, history, text, request, empty)
@@ -215,6 +245,8 @@ async def _prepare(settings, history, text, request, result):
                 continue
             args = ARGUMENTS[name].model_validate(args).model_dump()
             if name == "search_web":
+                # An engine choice comes from the user's request, not the model.
+                args["engine"] = (request.get("navigation") or {}).get("engine", "")
                 if request["category"] == "news":
                     args["category"] = "news"
                 if request["time_range"]:
@@ -256,6 +288,8 @@ async def _prepare(settings, history, text, request, result):
             calls = [fallback]
         if not calls:
             return result | {"answer": "어느 지역의 날씨를 확인할까요? 예: /날씨 서울"}
+    elif fallback and request.get("navigation"):
+        calls = [fallback]
     elif not calls and fallback and request["force"]:
         calls = [fallback]
     if not calls:
@@ -267,6 +301,9 @@ async def _prepare(settings, history, text, request, result):
         name, args = call["name"], call["arguments"]
         try:
             if name == "search_web":
+                result["search_links"] = search_links(
+                    args["query"], args.get("engine", "")
+                )
                 found = await web.search_web(settings, **args)
             elif name == "get_weather":
                 found = await web.weather(**args)

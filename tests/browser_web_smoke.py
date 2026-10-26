@@ -45,8 +45,18 @@ class Fixture(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/tags":
             self.respond({"models": [{"name": "qwen3:8b"}]})
+        elif self.path == "/config":
+            self.respond(
+                {
+                    "engines": [
+                        {"name": name, "disabled": False}
+                        for name in ("google", "naver", "google news", "naver news")
+                    ]
+                }
+            )
         elif self.path.startswith("/search?"):
-            query = parse_qs(urlsplit(self.path).query).get("q", [""])[0]
+            params = parse_qs(urlsplit(self.path).query)
+            query = params.get("q", [""])[0]
             state["queries"].append(query)
             time.sleep(2 if "취소" in query else 0.8)
             if state["offline"]:
@@ -60,6 +70,7 @@ class Fixture(BaseHTTPRequestHandler):
                                 "url": "https://example.org/news",
                                 "content": "공개 검색 요약 테스트입니다.",
                                 "publishedDate": "2026-10-25",
+                                "engine": params.get("engines", ["google"])[0],
                             }
                         ]
                     }
@@ -170,6 +181,64 @@ async def browser_checks(artifacts):
             "document.querySelector('#input').disabled === false"
         )
         assert any("최신 기술" in q for q in state["queries"])
+        # Named engines use the same source/stream path; result pages are separate links.
+        for engine, text in (
+            ("google", "구글에서 로컬 AI 검색해줘"),
+            ("naver", "네이버에서 영상 편집 검색해줘"),
+        ):
+            await page.locator("#input").fill(text)
+            await page.locator("#form button").click()
+            await page.locator(".message.assistant span").last.filter(
+                has_text="요약 답변"
+            ).wait_for()
+            await page.wait_for_function("!document.querySelector('#input').disabled")
+            assert (
+                "searxng · " + engine
+                in await page.locator(".source-card").last.inner_text()
+            )
+            assert engine in await page.locator(".search-links a").last.get_attribute(
+                "href"
+            )
+        await page.reload()
+        await page.locator(".search-links a").last.wait_for()
+        assert "naver.com" in await page.locator(".search-links a").last.get_attribute(
+            "href"
+        )
+        # Popups are real browser tabs; external pages are explicit fixtures, not live searches.
+        await page.context.route(
+            "https://www.google.com/**",
+            lambda route: route.fulfill(
+                body="Google navigation fixture", content_type="text/html"
+            ),
+        )
+        await page.context.route(
+            "https://search.naver.com/**",
+            lambda route: route.fulfill(
+                body="Naver navigation fixture", content_type="text/html"
+            ),
+        )
+        await page.wait_for_function("!document.querySelector('#input').disabled")
+        await page.locator("#input").fill("한국어 & GPU")
+        async with page.expect_popup() as opened:
+            await page.locator("#open-google").click()
+        popup = await opened.value
+        await popup.wait_for_load_state()
+        assert parse_qs(urlsplit(popup.url).query) == {"q": ["한국어 & GPU"]}
+        assert await popup.evaluate("window.opener === null")
+        await popup.close()
+        await page.locator("#input").fill("네이버에서 영상 아이디어 검색창 열어줘")
+        await page.locator("#form button").click()
+        await page.locator(".message.assistant span").last.filter(
+            has_text="버튼을 누르면"
+        ).wait_for()
+        async with page.expect_popup() as opened:
+            await page.locator(".search-links a").last.click()
+        popup = await opened.value
+        await popup.wait_for_load_state()
+        assert urlsplit(popup.url).hostname == "search.naver.com"
+        assert parse_qs(urlsplit(popup.url).query) == {"query": ["영상 아이디어"]}
+        assert await popup.evaluate("window.opener === null")
+        await popup.close()
         state["offline"] = True
         await page.locator("#input").fill("/검색 최신 뉴스")
         await page.locator("#form button").click()
@@ -284,6 +353,9 @@ async def browser_checks(artifacts):
                     "search_failure_keeps_local_chat": True,
                     "off_prevents_search": True,
                     "weather_ui_units_time_forecast_fixture": True,
+                    "named_google_naver_search_fixture": True,
+                    "search_links_after_reload": True,
+                    "google_naver_new_tabs": True,
                     "javascript_errors": errors,
                     "artifacts": str(artifacts),
                 },
